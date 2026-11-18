@@ -1,28 +1,34 @@
 # .github/workflows/macos-intel-package.yml
-# 放在你 fork 的 deepseek-harness 仓库里：fork → 贴此文件到 .github/workflows/ →
-# Actions 界面选本 workflow → Run workflow（workflow_dispatch）→ 等跑完 → Releases 下 dmg。
+# 方案 B：你自己的 Intel Mac 当 self-hosted runner，原生编 x64（无 Rosetta、无冒烟超时、无需签名证书）。
 #
-# 原理：GitHub 免费 macos-14（arm64，自带 Rosetta）交叉编译 x64；
-#       用官方自带的「无签名」脚本，不需要 Apple 开发者证书。
-# 产物：未签名的 macOS Intel (x64) .dmg，发到你的 GitHub Releases。
-# 注意：未签名 → 首次打开右键 → 打开（或 xattr -dr com.apple.quarantine 该 dmg）。
+# 一次性前置：
+#   fork → Settings → Actions → Runners → "New self-hosted runner" → 选 macOS / x64，
+#   在这台 Intel Mac 的终端里跑它给出的 Download + Configure 两条命令（config.sh 时给个
+#   自定义标签更方便，例如 mac-x64-build，然后把下面 runs-on 换成该标签）。
+# 每次构建：
+#   保持 runner 目录里的 `./run.sh` 运行着，再在 Actions 里 workflow_dispatch 触发。
 
-name: Build macOS Intel x64 DMG
+name: Build macOS Intel x64 DMG (self-hosted)
 
 on:
   workflow_dispatch:
-  # 想每天自动打就把下面两行取消注释（北京时间 10:00）：
+  # 自托管 runner 需常开才适合定时；要每天自动打再取消注释，并把 run.sh 设为开机自启：
   # schedule:
   #   - cron: '0 2 * * *'
 
 permissions:
-  contents: write          # 发 Release 需要
+  contents: write
 
 jobs:
   build:
-    runs-on: macos-15      # 免费 arm64（自带 Rosetta）交叉编 x64；macos-14 已于 2026-11-02 退役。备选：macos-26 / macos-latest
-    timeout-minutes: 240
+    runs-on: self-hosted            # 有自定义标签就改成那个标签（更安全、更精准）
     steps:
+      - name: Verify host is x64
+        run: |
+          set -e
+          uname -m
+          [ "$(uname -m)" = "x86_64" ] || { echo "::error::这台 runner 不是 x64（$(uname -m)），mac-x64 需要 Intel 机器"; exit 1; }
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -36,9 +42,6 @@ jobs:
         with:
           node-version: '24'
 
-      - name: Verify Rosetta (x64 交叉编译前提)
-        run: arch -x86_64 /usr/bin/true
-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -47,7 +50,7 @@ jobs:
           DSH_DESKTOP_TARGET_PLATFORM: darwin
           DSH_DESKTOP_TARGET_ARCH: x64
           DSH_TELEMETRY_DISABLED: '1'
-        run: pnpm run package:desktop:mac:x64:unsigned -- --defer-runtime-smoke
+        run: pnpm run package:desktop:mac:x64:unsigned
 
       - name: Locate built DMG
         id: dmg
