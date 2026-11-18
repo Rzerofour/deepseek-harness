@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: macos-14      # 免费 arm64 runner（自带 Rosetta），交叉编 x64
+    runs-on: macos-15      # 免费 arm64（自带 Rosetta）交叉编 x64；macos-14 已于 2026-11-02 退役。备选：macos-26 / macos-latest
     timeout-minutes: 240
     steps:
       - name: Checkout
