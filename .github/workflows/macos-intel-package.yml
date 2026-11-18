@@ -47,7 +47,7 @@ jobs:
           DSH_DESKTOP_TARGET_PLATFORM: darwin
           DSH_DESKTOP_TARGET_ARCH: x64
           DSH_TELEMETRY_DISABLED: '1'
-        run: pnpm run package:desktop:mac:x64:unsigned
+        run: pnpm run package:desktop:mac:x64:unsigned -- --defer-runtime-smoke
 
       - name: Locate built DMG
         id: dmg
